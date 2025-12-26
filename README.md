@@ -4,10 +4,11 @@ Desktop application for downloading and managing music from SoundCloud, built wi
 
 ## Features
 
-- Download music from SoundCloud
+- **Download multiple SoundCloud tracks** - Select and download multiple tracks at once, automatically compressed into ZIP format
+- **BPM Detection** - Automatically detect and display BPM (Beats Per Minute) for each track
+- Download single or multiple tracks with automatic ZIP compression
 - Extract metadata (BPM, Key) from tracks
-- Download single or multiple tracks (with ZIP compression)
-- Beautiful UI with React
+- UI built with React
 - Cross-platform (macOS, Windows, Linux)
 
 ## Installation
