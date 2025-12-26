@@ -1,0 +1,609 @@
+import React, { useState, useRef, useEffect } from 'react';
+import bgVideo from './assets/bg01.mp4';
+
+
+const ILoveMusic = () => {
+  const [selected, setSelected] = useState(new Set());
+  const [hoveredButton, setHoveredButton] = useState(null);
+  const [activeTab, setActiveTab] = useState('select');
+  const [pastedUrl, setPastedUrl] = useState('');
+  const [playingTrack, setPlayingTrack] = useState(null);
+  const [loadingTrack, setLoadingTrack] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  
+  const [tracks, setTracks] = useState([]);
+  
+  const audioRefs = useRef({});
+
+  const handleAddSoundCloud = async () => {
+    if (!pastedUrl.trim() || loadingTrack) return;
+  
+    // Check if electron API is available
+    if (!window.electron || !window.electron.addSoundCloud) {
+      alert('Error: Electron API not available. Please run this app in Electron, not in a regular browser.');
+      console.error('window.electron is not available');
+      return;
+    }
+  
+    setLoadingTrack(true);
+    try {
+      const track = await window.electron.addSoundCloud(pastedUrl);
+      console.log('Track received:', track);
+      console.log('Track BPM:', track.bpm, 'Track Key:', track.key);
+      setTracks(prev => [...prev, track]);
+      setPastedUrl('');
+    } catch (err) {
+      let errorMessage = 'Failed to load SoundCloud track';
+      if (err.message) {
+        if (err.message.includes('ffmpeg') || err.message.includes('ffprobe')) {
+          errorMessage = 'ffmpeg is required but not found. Please install ffmpeg:\n\n' +
+            'macOS: brew install ffmpeg\n' +
+            'Linux: sudo apt install ffmpeg (or your package manager)\n' +
+            'Windows: Download from https://ffmpeg.org/download.html';
+        } else {
+          errorMessage = 'Failed to load SoundCloud track: ' + err.message;
+        }
+      }
+      alert(errorMessage);
+      console.error(err);
+    } finally {
+      setLoadingTrack(false);
+    }
+  };
+  
+  const formatTime = (seconds) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  useEffect(() => {
+    const cleanupFunctions = [];
+    
+    tracks.forEach(track => {
+      if (audioRefs.current[track.id]) {
+        const audio = audioRefs.current[track.id];
+        
+        const handleLoadedMetadata = () => {
+          setTracks(prev => prev.map(t => 
+            t.id === track.id 
+              ? { ...t, duration: audio.duration }
+              : t
+          ));
+        };
+        
+        const updateProgress = () => {
+          setTracks(prev => prev.map(t => 
+            t.id === track.id 
+              ? { ...t, currentTime: audio.currentTime }
+              : t
+          ));
+        };
+        
+        const handleEnded = () => {
+          setPlayingTrack(null);
+          setTracks(prev => prev.map(t => 
+            t.id === track.id 
+              ? { ...t, currentTime: 0 }
+              : t
+          ));
+        };
+        
+        audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+        audio.addEventListener('timeupdate', updateProgress);
+        audio.addEventListener('ended', handleEnded);
+        
+        cleanupFunctions.push(() => {
+          audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+          audio.removeEventListener('timeupdate', updateProgress);
+          audio.removeEventListener('ended', handleEnded);
+        });
+      }
+    });
+    
+    return () => {
+      cleanupFunctions.forEach(cleanup => cleanup());
+    };
+  }, [tracks]);
+
+  const toggleSelect = (id) => {
+    const newSelected = new Set(selected);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelected(newSelected);
+  };
+
+  const handlePlay = async (id) => {
+    Object.keys(audioRefs.current).forEach(key => {
+      if (parseInt(key) !== id && audioRefs.current[key]) {
+        audioRefs.current[key].pause();
+      }
+    });
+    
+    if (playingTrack === id) {
+      if (audioRefs.current[id]) {
+        audioRefs.current[id].pause();
+      }
+      setPlayingTrack(null);
+    } else {
+      if (audioRefs.current[id]) {
+        try {
+          await audioRefs.current[id].play();
+          setPlayingTrack(id);
+        } catch (err) {
+          console.error('Error playing audio:', err);
+          alert('Error playing track. Make sure the file exists.');
+        }
+      }
+    }
+  };
+
+  const handleProgressClick = (e, track) => {
+    if (!audioRefs.current[track.id]) return;
+    
+    const bar = e.currentTarget;
+    const rect = bar.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    const percentage = clickX / rect.width;
+    const newTime = percentage * track.duration;
+    
+    audioRefs.current[track.id].currentTime = newTime;
+    setTracks(prev => prev.map(t => 
+      t.id === track.id 
+        ? { ...t, currentTime: newTime }
+        : t
+    ));
+  };
+
+  const handleDownload = async () => {
+    if (selected.size === 0 || downloading) return;
+    
+    setDownloading(true);
+    try {
+      const trackIds = Array.from(selected);
+      const result = await window.electron.downloadTracks(trackIds, tracks);
+      
+      if (result.success) {
+        alert(`Download successful! File saved to Downloads folder.`);
+        setSelected(new Set());
+      }
+    } catch (err) {
+      alert('Download failed: ' + (err.message || 'Unknown error'));
+      console.error(err);
+    } finally {
+      setDownloading(false);
+    }
+  };
+  
+  return (
+    <div style={{
+      fontFamily: '"SF Mono", "Monaco", "Inconsolata", "Roboto Mono", "Courier New", monospace',
+      position: 'relative',
+      minHeight: '100vh',
+      width: '100vw',
+      padding: '0',
+      margin: '0',
+      color: '#1a1a1a',
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden',
+      overflowX: 'hidden'
+    }}>
+      {/* Video Background */}
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          zIndex: -1,
+          pointerEvents: 'none'
+        }}
+      >
+        <source src={bgVideo} type="video/mp4" />
+      </video>
+      
+      {/* Content Container */}
+      <div style={{
+        position: 'relative',
+        zIndex: 1,
+        width: '100%',
+        height: '100%',
+        display: 'flex',
+        flexDirection: 'column'
+      }}>
+      {tracks.map(track => (
+        <audio 
+          key={track.id}
+          ref={el => {
+            if (el) {
+              audioRefs.current[track.id] = el;
+              // Handle error loading audio
+              el.addEventListener('error', (e) => {
+                console.error('Audio load error:', e);
+                setTracks(prev => prev.map(t => 
+                  t.id === track.id ? { ...t, error: true } : t
+                ));
+              });
+            }
+          }}
+          src={track.url}
+          preload="metadata"
+          crossOrigin="anonymous"
+        />
+      ))}
+
+      <div style={{
+        padding: '20px 32px',
+        display: 'flex',
+        gap: '8px',
+        alignItems: 'center',
+        borderBottom: '1px solid #1a1a1a',
+        backgroundColor: '#fff',
+        borderRadius: 0
+      }}>
+        <input
+          type="text"
+          value={pastedUrl}
+          onChange={(e) => setPastedUrl(e.target.value)}
+          placeholder="PASTE SOUNDCLOUD URL"
+          onKeyPress={(e) => {
+            if (e.key === 'Enter') {
+              handleAddSoundCloud();
+            }
+          }}
+          disabled={loadingTrack}
+          style={{
+            fontFamily: 'inherit',
+            fontSize: '11px',
+            letterSpacing: '0.01em',
+            padding: '10px 14px',
+            border: 'none',
+            backgroundColor: '#1a1a1a',
+            color: '#fff',
+            flex: 1,
+            outline: 'none',
+            textTransform: 'uppercase',
+            borderRadius: 0
+          }}
+        />
+        <button 
+          style={{
+            fontFamily: 'inherit',
+            fontSize: '11px',
+            letterSpacing: '0.02em',
+            textTransform: 'uppercase',
+            padding: '10px 32px',
+            border: 'none',
+            backgroundColor: hoveredButton === 'add' ? '#fff' : '#1a1a1a',
+            color: hoveredButton === 'add' ? '#1a1a1a' : '#fff',
+            cursor: loadingTrack ? 'wait' : 'pointer',
+            transition: 'all 0.2s ease-out',
+            outline: hoveredButton === 'add' ? '1px solid #1a1a1a' : 'none',
+            opacity: loadingTrack ? 0.6 : 1,
+            borderRadius: 0
+          }}
+          onClick={handleAddSoundCloud}
+          onMouseEnter={() => !loadingTrack && setHoveredButton('add')}
+          onMouseLeave={() => setHoveredButton(null)}
+          disabled={loadingTrack}
+        >
+          {loadingTrack ? 'LOADING...' : 'ADD'}
+        </button>
+      </div>
+
+      <div style={{
+        flex: 1,
+        padding: '32px 48px',
+        maxWidth: '1200px',
+        width: '100%',
+        margin: '0 auto',
+        boxSizing: 'border-box',
+        overflowX: 'hidden'
+      }}>
+
+      <div style={{
+        display: 'flex',
+        gap: '12px',
+        marginBottom: '32px'
+      }}>
+        {['about', 'select'].map((item) => {
+          const isActive = activeTab === item;
+          return (
+            <button 
+              key={item} 
+              onClick={() => setActiveTab(item)}
+              style={{
+                fontFamily: 'inherit',
+                fontSize: '11px',
+                letterSpacing: '0.02em',
+                textTransform: 'uppercase',
+                backgroundColor: isActive ? '#1a1a1a' : '#fff',
+                color: isActive ? '#fff' : '#1a1a1a',
+                border: isActive ? '1px solid #fff' : '1px solid #1a1a1a',
+                cursor: 'pointer',
+                padding: '10px 20px',
+                borderRadius: 0,
+                outline: 'none'
+              }}
+            >
+              {item}
+            </button>
+          );
+        })}
+      </div>
+
+      {activeTab === 'about' && (
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          minHeight: '400px',
+          gap: '24px'
+        }}>
+          <h1 style={{
+            fontSize: '12px',
+            fontWeight: '700',
+            letterSpacing: '0.01em',
+            textTransform: 'uppercase',
+            color: '#fff',
+            margin: -10,
+            textAlign: 'center'
+          }}>
+            MADE BY LOVE ILOVEMUSIC   ❤️   RIPO
+          </h1>
+          
+          <a
+            href="https://www.instagram.com/cactusdomain/"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              fontFamily: 'inherit',
+              fontSize: '14px',
+              letterSpacing: '0.02em',
+              textTransform: 'uppercase',
+              padding: '14px 40px',
+              border: '2px solid #1a1a1a',
+              backgroundColor: '#fff',
+              color: '#1a1a1a',
+              textDecoration: 'none',
+              transition: 'all 0.2s ease-out',
+              borderRadius: 0,
+              fontWeight: '600',
+              display: 'inline-block'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.backgroundColor = '#1a1a1a';
+              e.target.style.color = '#fff';
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.backgroundColor = '#fff';
+              e.target.style.color = '#1a1a1a';
+            }}
+          >
+            @CACTUSDOMAIN
+          </a>
+        </div>
+      )}
+
+      {activeTab === 'select' && (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {tracks.map((track) => {
+          const isSelected = selected.has(track.id);
+          const isPlaying = playingTrack === track.id;
+          const progress = track.duration > 0 ? track.currentTime / track.duration : 0;
+          
+          return (
+            <div
+              key={track.id}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                backgroundColor: '#fff',
+                padding: '16px',
+                gap: '16px',
+                border: 'none',
+                borderRadius: 0
+              }}
+            >
+              <button
+                onClick={() => handlePlay(track.id)}
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  border: 'none',
+                  backgroundColor: 'transparent',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '12px',
+                  flexShrink: 0,
+                  padding: 0
+                }}
+              >
+                {isPlaying ? (
+                  <span style={{ display: 'flex', gap: '2px' }}>
+                    <span style={{ width: '3px', height: '10px', backgroundColor: '#1a1a1a' }}></span>
+                    <span style={{ width: '3px', height: '10px', backgroundColor: '#1a1a1a' }}></span>
+                  </span>
+                ) : (
+                  <span style={{
+                    width: 0,
+                    height: 0,
+                    borderLeft: '8px solid #1a1a1a',
+                    borderTop: '6px solid transparent',
+                    borderBottom: '6px solid transparent',
+                    marginLeft: '2px'
+                  }}></span>
+                )}
+              </button>
+
+              <div style={{ flex: 1, minWidth: 0, backgroundColor: '#fff' }}>
+                <div style={{
+                  fontSize: '12px',
+                  letterSpacing: '0.01em',
+                  marginBottom: '4px',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  color: '#1a1a1a',
+                  textTransform: 'uppercase'
+                }}>
+                  {track.title} - {track.artist}
+                </div>
+                {(track.bpm || track.key) && (
+                  <div style={{
+                    fontSize: '10px',
+                    color: '#666',
+                    marginBottom: '4px',
+                    display: 'flex',
+                    gap: '12px',
+                    alignItems: 'center',
+                    textTransform: 'uppercase'
+                  }}>
+                    {track.bpm && (
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span style={{ fontWeight: '600' }}>BPM:</span>
+                        <span>{track.bpm}</span>
+                      </span>
+                    )}
+                    {track.key && (
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span style={{ fontWeight: '600' }}>Key:</span>
+                        <span>{track.key}</span>
+                      </span>
+                    )}
+                  </div>
+                )}
+                <div style={{
+                  fontSize: '11px',
+                  color: '#1a1a1a',
+                  marginBottom: '6px',
+                  textTransform: 'uppercase'
+                }}>
+                  {formatTime(track.currentTime)} / {formatTime(track.duration)}
+                </div>
+                <div 
+                  onClick={(e) => handleProgressClick(e, track)}
+                  style={{
+                    height: '2px',
+                    backgroundColor: '#fff',
+                    position: 'relative',
+                    maxWidth: '100%',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <div style={{
+                    position: 'absolute',
+                    left: 0,
+                    top: 0,
+                    height: '100%',
+                    width: `${progress * 100}%`,
+                    backgroundColor: '#1a1a1a',
+                    transition: 'width 0.1s linear'
+                  }} />
+                </div>
+              </div>
+
+              <button
+                onClick={() => toggleSelect(track.id)}
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  border: isSelected ? 'none' : '0px solid #1a1a1a',
+                  backgroundColor: isSelected ? '#1a1a1a' : '#fff',
+                  color: isSelected ? '#fff' : '#1a1a1a',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '18px',
+                  fontWeight: 'normal',
+                  flexShrink: 0,
+                  transition: 'all 0.2s ease-out'
+                }}
+              >
+                {isSelected ? '−' : '+'}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+      )}
+      </div>
+
+      {selected.size > 0 && (
+        <div style={{
+          position: 'fixed',
+          bottom: '32px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          maxWidth: '840px',
+          width: 'calc(100% - 64px)',
+          padding: '14px 20px',
+          backgroundColor: '#1a1a1a',
+          color: '#fff',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          fontSize: '11px',
+          letterSpacing: '0.02em',
+          textTransform: 'uppercase',
+          boxShadow: '0 4px 12px #1a1a1a',
+          transition: 'opacity 0.2s ease-out',
+          borderRadius: 0
+        }}>
+          <span>{selected.size} SELECTED</span>
+          <button
+            onClick={handleDownload}
+            disabled={downloading}
+            style={{
+              fontFamily: 'inherit',
+              fontSize: '11px',
+              letterSpacing: '0.02em',
+              textTransform: 'uppercase',
+              padding: '8px 20px',
+              border: '0px solid #fff',
+              backgroundColor: 'transparent',
+              color: '#fff',
+              cursor: downloading ? 'wait' : 'pointer',
+              transition: 'all 0.2s ease-out',
+              opacity: downloading ? 0.6 : 1,
+              borderRadius: 0
+            }}
+            onMouseEnter={(e) => {
+              if (!downloading) {
+                e.target.style.backgroundColor = '#fff';
+                e.target.style.color = '#1a1a1a';
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.backgroundColor = 'transparent';
+              e.target.style.color = '#fff';
+            }}
+          >
+            {downloading 
+              ? 'DOWNLOADING...' 
+              : selected.size === 1 
+                ? 'DOWNLOAD TRACK' 
+                : `DOWNLOAD ${selected.size} AS ZIP`}
+          </button>
+        </div>
+      )}
+      </div>
+    </div>
+  );
+};
+
+export default ILoveMusic;

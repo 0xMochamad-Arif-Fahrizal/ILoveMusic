@@ -1,0 +1,25 @@
+{
+    "name": "ilovemusic-desktop",
+    "version": "0.1.0",
+    "main": "main.js",
+    "private": true,
+    "scripts": {
+        "dev": "concurrently \"npm run dev --prefix renderer\" \"electron .\"",
+        "build": "npm run build --prefix renderer && electron-builder",
+        "build:mac": "npm run build --prefix renderer && electron-builder --mac",
+        "build:win": "npm run build --prefix renderer && electron-builder --win",
+        "build:linux": "npm run build --prefix renderer && electron-builder --linux"
+    },
+    "devDependencies": {
+        "concurrently": "^8.2.2",
+        "electron": "^39.2.7",
+        "electron-builder": "^25.1.8"
+    },
+    "dependencies": {
+        "archiver": "^7.0.1",
+        "archiver-utils": "^5.0.2",
+        "music-metadata": "^11.10.3",
+        "node-id3": "^0.2.9",
+        "soundcloud-downloader": "^1.0.0"
+    }
+}

@@ -1,0 +1,61 @@
+appId: com.ripox.ilovemusic
+productName: ILoveMusic
+directories:
+  output: dist
+  buildResources: build
+
+# Icon configuration
+# Place your icon.png file at: build/icons/icon.png (1024x1024 recommended)
+# electron-builder will use it for all platforms
+icon: build/icons/icon.png
+
+files:
+  - filter:
+      - electron/**/*
+      - renderer/dist/**/*
+      - main.js
+      - preload.js
+      - package.json
+      - "!**/node_modules/**/{CHANGELOG.md,README.md,README,readme.md,readme}"
+      - "!**/node_modules/**/{test,__tests__,tests,powered-test,example,examples}"
+      - "!**/node_modules/**/*.d.ts"
+      - "!**/node_modules/**/.{yarn-integrity,yarn-metadata.json}"
+      - "!**/node_modules/**/{.nyc_output,coverage,.nyc_output}"
+      - "!**/node_modules/**/*.{iml,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,suo,xproj,cc,d.ts,mk,a,o,obj,forge-meta,pdb}"
+      - "!**/._*"
+      - "!**/{.git,.hg,.svn,CVS,RCS,SCCS,__pycache__,.DS_Store,thumbs.db,.gitignore,.gitkeep,.gitattributes,.npmignore,.idea,.vs,.flowconfig,.jshintrc,.eslintrc,.circleci,.yarn-integrity,.yarn-metadata.json,yarn-error.log,yarn.lock,package-lock.json,npm-debug.log,pnpm-lock.yaml,appveyor.yml,.travis.yml,circle.yml,.nyc_output,.husky,.github,electron-builder.env}"
+
+extraResources:
+  - from: renderer/dist
+    to: app/dist
+    filter:
+      - "**/*"
+  - from: build/bin/yt-dlp
+    to: bin/yt-dlp
+  - from: build/bin/win/yt-dlp.exe
+    to: bin/yt-dlp.exe
+
+mac:
+  category: public.app-category.music
+  target:
+    - dmg
+    - zip
+
+win:
+  # icon: build/icons/icon.ico  # Uncomment when you have icon.ico file
+  target:
+    - nsis
+    - portable
+
+linux:
+  target:
+    - AppImage
+
+electronVersion: 39.2.7
+
+# Unpack ALL production dependencies from ASAR
+# Archiver and its dependencies don't work well inside ASAR
+# Solution: Unpack all node_modules to avoid missing any nested dependencies
+asarUnpack:
+  - "node_modules/**/*"
+
