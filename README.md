@@ -1,21 +1,21 @@
-# ILoveMusic 🎵
+# ILoveMusic
 
-Aplikasi desktop untuk download dan manage musik dari SoundCloud, dibuat dengan Electron dan React.
+Desktop application for downloading and managing music from SoundCloud, built with Electron and React.
 
-## ✨ Features
+## Features
 
-- Download musik dari SoundCloud
-- Extract metadata (BPM, Key) dari track
-- Download single atau multiple tracks (dengan ZIP compression)
-- Beautiful UI dengan React
+- Download music from SoundCloud
+- Extract metadata (BPM, Key) from tracks
+- Download single or multiple tracks (with ZIP compression)
+- Beautiful UI with React
 - Cross-platform (macOS, Windows, Linux)
 
-## 🚀 Installation
+## Installation
 
 ### Prerequisites
 
-- Node.js (v16 atau lebih baru)
-- npm atau yarn
+- Node.js (v16 or newer)
+- npm or yarn
 
 ### Setup
 
@@ -29,14 +29,14 @@ npm install
 npm install --prefix renderer
 ```
 
-## 🛠️ Development
+## Development
 
 ```bash
 # Run in development mode
 npm run dev
 ```
 
-## 📦 Build
+## Build
 
 ### macOS
 ```bash
@@ -53,24 +53,24 @@ npm run build:win
 npm run build:linux
 ```
 
-Build output akan ada di folder `dist/`
+Build output will be in the `dist/` folder.
 
-## 📋 Requirements
+## Requirements
 
-Untuk BPM detection (opsional):
-- `ffmpeg` - untuk audio conversion
-- `aubio` - untuk BPM detection
+For BPM detection (optional):
+- `ffmpeg` - for audio conversion
+- `aubio` - for BPM detection
 
-Install dengan:
+Install with:
 ```bash
 # macOS (Homebrew)
 brew install ffmpeg aubio
 
 # Windows/Linux
-# Install sesuai package manager masing-masing
+# Install according to your package manager
 ```
 
-## 🎨 Tech Stack
+## Tech Stack
 
 - **Electron** - Desktop app framework
 - **React** - UI framework
@@ -79,19 +79,19 @@ brew install ffmpeg aubio
 - **archiver** - ZIP compression
 - **music-metadata** - Metadata extraction
 
-## 📝 License
+## License
 
 Private project
 
-## 👤 Author
+## Author
 
 **RIPO**
 
-Made with ❤️ by RIPO
+Made by RIPO
 
 ---
 
-## 🔗 Links
+## Links
 
 - Repository: https://github.com/0xMochamad-Arif-Fahrizal/ILoveMusic
 
