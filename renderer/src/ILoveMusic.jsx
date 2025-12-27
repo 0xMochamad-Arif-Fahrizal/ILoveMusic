@@ -1452,8 +1452,8 @@ const ILoveMusic = () => {
           backgroundColor: '#1a1a1a',
           color: '#fff',
           display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
+          flexDirection: 'column',
+          gap: '12px',
           fontSize: '11px',
           letterSpacing: '0.02em',
           textTransform: 'uppercase',
@@ -1461,8 +1461,9 @@ const ILoveMusic = () => {
           transition: 'opacity 0.2s ease-out',
           borderRadius: 0
         }}>
-          <span>{selected.size} SELECTED</span>
-          <button
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>{selected.size} SELECTED</span>
+            <button
             onClick={handleDownload}
             disabled={downloading}
             style={{
@@ -1491,11 +1492,27 @@ const ILoveMusic = () => {
             }}
           >
             {downloading 
-              ? 'DOWNLOADING...' 
+              ? `DOWNLOADING... ${downloadProgress}%` 
               : selected.size === 1 
                 ? 'DOWNLOAD TRACK' 
                 : `DOWNLOAD ${selected.size} AS ZIP`}
           </button>
+          </div>
+          {downloading && (
+            <div style={{
+              width: '100%',
+              height: '4px',
+              backgroundColor: '#333',
+              position: 'relative'
+            }}>
+              <div style={{
+                width: `${downloadProgress}%`,
+                height: '100%',
+                backgroundColor: '#fff',
+                transition: 'width 0.3s ease-out'
+              }} />
+            </div>
+          )}
         </div>
       )}
 
