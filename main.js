@@ -175,6 +175,124 @@ async function detectBPMFromAudio(filePath) {
   }
 }
 
+// Function to download artwork image
+async function downloadArtwork(thumbnailUrl, outputPath) {
+  try {
+    const https = require('https');
+    const http = require('http');
+    const url = require('url');
+    
+    return new Promise((resolve, reject) => {
+      const parsedUrl = new URL(thumbnailUrl);
+      const client = parsedUrl.protocol === 'https:' ? https : http;
+      
+      const file = fs.createWriteStream(outputPath);
+      
+      client.get(thumbnailUrl, (response) => {
+        if (response.statusCode === 200) {
+          response.pipe(file);
+          file.on('finish', () => {
+            file.close();
+            resolve(outputPath);
+          });
+        } else if (response.statusCode === 301 || response.statusCode === 302) {
+          // Handle redirect
+          file.close();
+          fs.unlinkSync(outputPath);
+          downloadArtwork(response.headers.location, outputPath).then(resolve).catch(reject);
+        } else {
+          file.close();
+          fs.unlinkSync(outputPath);
+          reject(new Error(`Failed to download artwork: ${response.statusCode}`));
+        }
+      }).on('error', (err) => {
+        file.close();
+        if (fs.existsSync(outputPath)) {
+          fs.unlinkSync(outputPath);
+        }
+        reject(err);
+      });
+    });
+  } catch (error) {
+    console.log('Error downloading artwork:', error.message);
+    throw error;
+  }
+}
+
+// Function to embed artwork to audio file
+async function embedArtworkToFile(filePath, artworkPath) {
+  if (!fs.existsSync(artworkPath)) {
+    console.log('Artwork file not found, skipping embed');
+    return;
+  }
+  
+  const fileExt = path.extname(filePath).toLowerCase();
+  const tempPath = filePath + '.tmp';
+  
+  try {
+    const ffmpegPath = getFfmpegPath();
+    console.log('Embedding artwork using ffmpeg...');
+    
+    // Use ffmpeg to embed artwork
+    const ffmpegArgs = [
+      '-i', filePath,
+      '-i', artworkPath,
+      '-map', '0:a', // Map audio stream
+      '-map', '1', // Map image stream
+      '-c', 'copy', // Copy codec (no re-encoding for audio)
+      '-c:v', 'mjpeg', // Codec for image
+      '-disposition:v', 'attached_pic', // Set image as attached picture
+      '-y', // Overwrite
+      tempPath
+    ];
+    
+    await execFileAsync(ffmpegPath, ffmpegArgs);
+    
+    // Replace original file with temp file
+    fs.renameSync(tempPath, filePath);
+    console.log('Artwork embedded successfully using ffmpeg');
+  } catch (error) {
+    // If ffmpeg fails, try using node-id3 for MP3 files
+    if (fileExt === '.mp3') {
+      try {
+        const NodeID3 = require('node-id3');
+        const imageBuffer = fs.readFileSync(artworkPath);
+        
+        const tags = {
+          image: {
+            mime: 'image/jpeg',
+            type: { id: 3, name: 'front cover' },
+            description: 'Cover',
+            imageBuffer: imageBuffer
+          }
+        };
+        
+        NodeID3.update(tags, filePath);
+        console.log('Artwork embedded successfully using node-id3');
+        
+        // Clean up temp file if it exists
+        if (fs.existsSync(tempPath)) {
+          fs.unlinkSync(tempPath);
+        }
+      } catch (id3Error) {
+        console.log('Error embedding artwork with node-id3:', id3Error.message);
+        // Clean up temp file if it exists
+        if (fs.existsSync(tempPath)) {
+          fs.unlinkSync(tempPath);
+        }
+        // Don't throw error, just log it
+      }
+    } else {
+      // Clean up temp file if it exists
+      if (fs.existsSync(tempPath)) {
+        fs.unlinkSync(tempPath);
+      }
+      // Don't throw error, just log it
+      console.log('Error embedding artwork:', error.message);
+    }
+  }
+}
+
 // Function to write metadata to audio file using ffmpeg
 async function writeMetadataToFile(filePath, metadata) {
   const fileExt = path.extname(filePath).toLowerCase();
@@ -191,6 +309,15 @@ async function writeMetadataToFile(filePath, metadata) {
       '-metadata', `title=${metadata.title || ''}`,
       '-metadata', `artist=${metadata.artist || ''}`
     ];
+    
+    // Add artwork if provided
+    if (metadata.artworkPath && fs.existsSync(metadata.artworkPath)) {
+      ffmpegArgs.push('-i', metadata.artworkPath);
+      ffmpegArgs.push('-map', '0:a');
+      ffmpegArgs.push('-map', '1');
+      ffmpegArgs.push('-c:v', 'mjpeg');
+      ffmpegArgs.push('-disposition:v', 'attached_pic');
+    }
     
     // Add BPM metadata (TBPM tag for ID3v2)
     if (metadata.bpm) {
@@ -235,6 +362,17 @@ async function writeMetadataToFile(filePath, metadata) {
         
         if (metadata.key) {
           tags.initialKey = metadata.key;
+        }
+        
+        // Add artwork if provided
+        if (metadata.artworkPath && fs.existsSync(metadata.artworkPath)) {
+          const imageBuffer = fs.readFileSync(metadata.artworkPath);
+          tags.image = {
+            mime: 'image/jpeg',
+            type: { id: 3, name: 'front cover' },
+            description: 'Cover',
+            imageBuffer: imageBuffer
+          };
         }
         
         NodeID3.write(tags, filePath);
@@ -720,20 +858,41 @@ ipcMain.handle('soundcloud:add', async (_, url) => {
       console.log('Error extracting BPM/Key:', metaError.message);
     }
     
-    // Write BPM dan Key ke metadata file audio agar terbaca di Rekordbox
-    if (bpm || key) {
+    // Download and embed artwork
+    let artworkPath = null;
+    if (info.thumbnail) {
       try {
-        await writeMetadataToFile(absolutePath, {
-          bpm: bpm,
-          key: key,
-          title: info.title || 'Unknown',
-          artist: info.uploader || info.channel || 'Unknown Artist'
-        });
-        console.log('Metadata written to file successfully');
-      } catch (writeError) {
-        console.log('Error writing metadata to file:', writeError.message);
-        // Continue even if metadata write fails
+        const artworkDir = path.join(app.getPath('userData'), 'artwork');
+        if (!fs.existsSync(artworkDir)) {
+          fs.mkdirSync(artworkDir, { recursive: true });
+        }
+        artworkPath = path.join(artworkDir, `${info.id}.jpg`);
+        console.log('Downloading artwork from:', info.thumbnail);
+        await downloadArtwork(info.thumbnail, artworkPath);
+        console.log('Artwork downloaded successfully');
+        
+        // Embed artwork to audio file
+        await embedArtworkToFile(absolutePath, artworkPath);
+        console.log('Artwork embedded successfully');
+      } catch (artworkError) {
+        console.log('Error downloading/embedding artwork:', artworkError.message);
+        // Continue even if artwork fails
       }
+    }
+    
+    // Write BPM dan Key ke metadata file audio agar terbaca di Rekordbox
+    try {
+      await writeMetadataToFile(absolutePath, {
+        bpm: bpm,
+        key: key,
+        title: info.title || 'Unknown',
+        artist: info.uploader || info.channel || 'Unknown Artist',
+        artworkPath: artworkPath
+      });
+      console.log('Metadata written to file successfully');
+    } catch (writeError) {
+      console.log('Error writing metadata to file:', writeError.message);
+      // Continue even if metadata write fails
     }
     
     const trackData = {
@@ -756,6 +915,18 @@ ipcMain.handle('soundcloud:add', async (_, url) => {
   }
 });
 
+// Helper function to get next available ILOVEMUSIC zip filename
+function getNextILoveMusicZipPath(downloadsPath) {
+  let counter = 1;
+  let zipPath;
+  do {
+    zipPath = path.join(downloadsPath, `ILOVEMUSIC(${counter}).zip`);
+    counter++;
+  } while (fs.existsSync(zipPath) && counter < 1000); // Prevent infinite loop
+  
+  return zipPath;
+}
+
 // Handler untuk download track ke folder Downloads
 ipcMain.handle('soundcloud:download', async (_, trackIds, tracks) => {
   try {
@@ -776,9 +947,9 @@ ipcMain.handle('soundcloud:download', async (_, trackIds, tracks) => {
       
       return { success: true, path: destPath };
     } else {
-      // Multiple tracks - create ZIP
+      // Multiple tracks - create ZIP with ILOVEMUSIC naming
       const archiver = require('archiver');
-      const zipPath = path.join(downloadsPath, `soundcloud-tracks-${Date.now()}.zip`);
+      const zipPath = getNextILoveMusicZipPath(downloadsPath);
       const output = fs.createWriteStream(zipPath);
       const archive = archiver('zip', { zlib: { level: 9 } });
 
