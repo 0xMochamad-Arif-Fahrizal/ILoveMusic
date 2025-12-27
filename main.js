@@ -649,9 +649,12 @@ ipcMain.handle('soundcloud:add', async (_, url) => {
     }
 
     // Pertama, dapatkan info track tanpa download
+    // Include playlist/album info to get album artwork
     const infoArgs = [
       '--print-json',
       '--no-download',
+      '--flat-playlist',
+      '--yes-playlist',
       url
     ];
 
@@ -860,15 +863,48 @@ ipcMain.handle('soundcloud:add', async (_, url) => {
     
     // Download and embed artwork
     let artworkPath = null;
+    let thumbnailUrl = null;
+    
+    // Try multiple sources for artwork
+    // 1. Try track thumbnail
     if (info.thumbnail) {
+      thumbnailUrl = info.thumbnail;
+    }
+    // 2. Try thumbnails array (usually has higher quality)
+    else if (info.thumbnails && Array.isArray(info.thumbnails) && info.thumbnails.length > 0) {
+      // Get the highest quality thumbnail (usually the last one)
+      const bestThumbnail = info.thumbnails[info.thumbnails.length - 1];
+      thumbnailUrl = bestThumbnail.url || bestThumbnail;
+    }
+    // 3. Try album/playlist artwork if available
+    else if (info.album) {
+      thumbnailUrl = info.album.thumbnail || (info.album.thumbnails && info.album.thumbnails.length > 0 ? info.album.thumbnails[info.album.thumbnails.length - 1].url : null);
+    }
+    // 4. Try playlist artwork if track is in a playlist
+    else if (info.playlist && info.playlist.thumbnail) {
+      thumbnailUrl = info.playlist.thumbnail;
+    }
+    // 5. Try uploader/artist artwork as last resort
+    else if (info.uploader_thumbnail) {
+      thumbnailUrl = info.uploader_thumbnail;
+    }
+    
+    if (thumbnailUrl) {
       try {
         const artworkDir = path.join(app.getPath('userData'), 'artwork');
         if (!fs.existsSync(artworkDir)) {
           fs.mkdirSync(artworkDir, { recursive: true });
         }
         artworkPath = path.join(artworkDir, `${info.id}.jpg`);
-        console.log('Downloading artwork from:', info.thumbnail);
-        await downloadArtwork(info.thumbnail, artworkPath);
+        console.log('Downloading artwork from:', thumbnailUrl);
+        console.log('Available artwork sources:', {
+          thumbnail: info.thumbnail,
+          thumbnails: info.thumbnails,
+          album: info.album,
+          playlist: info.playlist,
+          uploader_thumbnail: info.uploader_thumbnail
+        });
+        await downloadArtwork(thumbnailUrl, artworkPath);
         console.log('Artwork downloaded successfully');
         
         // Embed artwork to audio file
@@ -878,6 +914,9 @@ ipcMain.handle('soundcloud:add', async (_, url) => {
         console.log('Error downloading/embedding artwork:', artworkError.message);
         // Continue even if artwork fails
       }
+    } else {
+      console.log('No artwork thumbnail found in track info');
+      console.log('Available info fields:', Object.keys(info));
     }
     
     // Write BPM dan Key ke metadata file audio agar terbaca di Rekordbox
