@@ -17,7 +17,6 @@ const ILoveMusic = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterBpmMin, setFilterBpmMin] = useState('');
   const [filterBpmMax, setFilterBpmMax] = useState('');
-  const [filterKey, setFilterKey] = useState('');
   const [filterArtist, setFilterArtist] = useState('');
   
   // Sorting state
@@ -293,8 +292,7 @@ const ILoveMusic = () => {
       filtered = filtered.filter(track => 
         track.title?.toLowerCase().includes(query) ||
         track.artist?.toLowerCase().includes(query) ||
-        track.bpm?.toString().includes(query) ||
-        track.key?.toLowerCase().includes(query)
+        track.bpm?.toString().includes(query)
       );
     }
 
@@ -306,11 +304,6 @@ const ILoveMusic = () => {
     if (filterBpmMax) {
       const max = parseInt(filterBpmMax);
       filtered = filtered.filter(track => track.bpm && track.bpm <= max);
-    }
-
-    // Apply key filter
-    if (filterKey) {
-      filtered = filtered.filter(track => track.key && track.key.toLowerCase() === filterKey.toLowerCase());
     }
 
     // Apply artist filter
@@ -327,10 +320,6 @@ const ILoveMusic = () => {
         case 'bpm':
           aVal = a.bpm || 0;
           bVal = b.bpm || 0;
-          break;
-        case 'key':
-          aVal = a.key || '';
-          bVal = b.key || '';
           break;
         case 'title':
           aVal = a.title || '';
@@ -694,20 +683,6 @@ const ILoveMusic = () => {
             />
             <input
               type="text"
-              value={filterKey}
-              onChange={(e) => setFilterKey(e.target.value)}
-              placeholder="KEY"
-              style={{
-                fontSize: '11px',
-                padding: '6px 10px',
-                border: '1px solid #1a1a1a',
-                width: '80px',
-                outline: 'none',
-                textTransform: 'uppercase'
-              }}
-            />
-            <input
-              type="text"
               value={filterArtist}
               onChange={(e) => setFilterArtist(e.target.value)}
               placeholder="ARTIST"
@@ -740,7 +715,6 @@ const ILoveMusic = () => {
               <option value="title">TITLE</option>
               <option value="artist">ARTIST</option>
               <option value="bpm">BPM</option>
-              <option value="key">KEY</option>
               <option value="duration">DURATION</option>
             </select>
             <button
@@ -827,7 +801,7 @@ const ILoveMusic = () => {
                 }}>
                   {track.title} - {track.artist}
                 </div>
-                {(track.bpm || track.key) && (
+                {track.bpm && (
                   <div style={{
                     fontSize: '10px',
                     color: '#666',
@@ -837,18 +811,10 @@ const ILoveMusic = () => {
                     alignItems: 'center',
                     textTransform: 'uppercase'
                   }}>
-                    {track.bpm && (
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <span style={{ fontWeight: '600' }}>BPM:</span>
-                        <span>{track.bpm}</span>
-                      </span>
-                    )}
-                    {track.key && (
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <span style={{ fontWeight: '600' }}>Key:</span>
-                        <span>{track.key}</span>
-                      </span>
-                    )}
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span style={{ fontWeight: '600' }}>BPM:</span>
+                      <span>{track.bpm}</span>
+                    </span>
                   </div>
                 )}
                 <div style={{
@@ -1070,62 +1036,6 @@ const ILoveMusic = () => {
                   }}
                 />
               </div>
-              <div style={{ display: 'flex', gap: '16px' }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ 
-                    fontSize: '11px', 
-                    textTransform: 'uppercase', 
-                    display: 'block', 
-                    marginBottom: '8px',
-                    fontWeight: '600',
-                    letterSpacing: '0.01em'
-                  }}>
-                    BPM
-                  </label>
-                  <input
-                    type="number"
-                    defaultValue={editingTrack.bpm || ''}
-                    id="edit-bpm"
-                    style={{
-                      width: '100%',
-                      padding: '12px',
-                      border: '1px solid #1a1a1a',
-                      fontSize: '11px',
-                      textTransform: 'uppercase',
-                      outline: 'none',
-                      fontFamily: 'inherit',
-                      boxSizing: 'border-box'
-                    }}
-                  />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ 
-                    fontSize: '11px', 
-                    textTransform: 'uppercase', 
-                    display: 'block', 
-                    marginBottom: '8px',
-                    fontWeight: '600',
-                    letterSpacing: '0.01em'
-                  }}>
-                    KEY
-                  </label>
-                  <input
-                    type="text"
-                    defaultValue={editingTrack.key || ''}
-                    id="edit-key"
-                    style={{
-                      width: '100%',
-                      padding: '12px',
-                      border: '1px solid #1a1a1a',
-                      fontSize: '11px',
-                      textTransform: 'uppercase',
-                      outline: 'none',
-                      fontFamily: 'inherit',
-                      boxSizing: 'border-box'
-                    }}
-                  />
-                </div>
-              </div>
             </div>
             <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
               <button
@@ -1158,9 +1068,7 @@ const ILoveMusic = () => {
                   const updated = {
                     ...editingTrack,
                     title: document.getElementById('edit-title').value,
-                    artist: document.getElementById('edit-artist').value,
-                    bpm: parseInt(document.getElementById('edit-bpm').value) || null,
-                    key: document.getElementById('edit-key').value || null
+                    artist: document.getElementById('edit-artist').value
                   };
                   handleSaveEdit(updated);
                 }}
