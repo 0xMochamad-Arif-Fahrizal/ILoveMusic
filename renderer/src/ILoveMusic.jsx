@@ -192,7 +192,7 @@ const ILoveMusic = () => {
     const bar = e.currentTarget;
     const rect = bar.getBoundingClientRect();
     const clickX = e.clientX - rect.left;
-    const percentage = clickX / rect.width;
+    const percentage = Math.max(0, Math.min(1, clickX / rect.width));
     const newTime = percentage * track.duration;
     
     audioRefs.current[track.id].currentTime = newTime;
@@ -201,6 +201,40 @@ const ILoveMusic = () => {
         ? { ...t, currentTime: newTime }
         : t
     ));
+  };
+
+  const handleProgressMouseDown = (e, track) => {
+    if (!audioRefs.current[track.id]) return;
+    
+    const bar = e.currentTarget;
+    const rect = bar.getBoundingClientRect();
+    
+    const updateProgress = (clientX) => {
+      const clickX = clientX - rect.left;
+      const percentage = Math.max(0, Math.min(1, clickX / rect.width));
+      const newTime = percentage * track.duration;
+      
+      audioRefs.current[track.id].currentTime = newTime;
+      setTracks(prev => prev.map(t => 
+        t.id === track.id 
+          ? { ...t, currentTime: newTime }
+          : t
+      ));
+    };
+    
+    updateProgress(e.clientX);
+    
+    const handleMouseMove = (moveEvent) => {
+      updateProgress(moveEvent.clientX);
+    };
+    
+    const handleMouseUp = () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+    
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
   };
 
   const handleDownload = async () => {
@@ -541,9 +575,10 @@ const ILoveMusic = () => {
                 </div>
                 <div 
                   onClick={(e) => handleProgressClick(e, track)}
+                  onMouseDown={(e) => handleProgressMouseDown(e, track)}
                   style={{
                     height: '2px',
-                    backgroundColor: '#fff',
+                    backgroundColor: '#999',
                     position: 'relative',
                     maxWidth: '100%',
                     cursor: 'pointer'
