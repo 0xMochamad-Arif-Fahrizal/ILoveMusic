@@ -81,3 +81,4 @@ npm install --prefix renderer
 npm run build:mac  # atau build:win
 ```
 
+
