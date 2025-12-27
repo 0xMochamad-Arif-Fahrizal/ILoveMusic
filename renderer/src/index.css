@@ -65,13 +65,15 @@ button {
   cursor: pointer;
   transition: border-color 0.25s;
   text-transform: uppercase;
+  outline: none !important;
 }
 button:hover {
   border-color: #646cff;
 }
 button:focus,
 button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 @media (prefers-color-scheme: light) {

@@ -508,8 +508,11 @@ const ILoveMusic = () => {
                   justifyContent: 'center',
                   fontSize: '12px',
                   flexShrink: 0,
-                  padding: 0
+                  padding: 0,
+                  outline: 'none'
                 }}
+                onFocus={(e) => e.target.style.outline = 'none'}
+                onBlur={(e) => e.target.style.outline = 'none'}
               >
                 {isPlaying ? (
                   <span style={{ display: 'flex', gap: '2px' }}>
