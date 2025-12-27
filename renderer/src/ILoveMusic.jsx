@@ -362,29 +362,6 @@ const ILoveMusic = () => {
     setEditingTrack(null);
   };
 
-  // Export to Rekordbox format
-  const handleExportRekordbox = () => {
-    if (!window.electron || !window.electron.exportRekordbox) {
-      alert('REKORDBOX EXPORT NOT AVAILABLE');
-      return;
-    }
-    
-    const selectedTracks = tracks.filter(t => selected.has(t.id));
-    if (selectedTracks.length === 0) {
-      alert('PLEASE SELECT TRACKS TO EXPORT');
-      return;
-    }
-    
-    window.electron.exportRekordbox(selectedTracks).then(result => {
-      if (result.success) {
-        alert(`EXPORTED ${selectedTracks.length} TRACKS TO REKORDBOX FORMAT!`);
-      } else {
-        alert('EXPORT FAILED: ' + (result.error || 'UNKNOWN ERROR'));
-      }
-    }).catch(err => {
-      alert('EXPORT FAILED: ' + err.message);
-    });
-  };
 
   
   return (
@@ -1120,70 +1097,42 @@ const ILoveMusic = () => {
           transition: 'opacity 0.2s ease-out',
           borderRadius: 0
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span>{selected.size} SELECTED</span>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button
-                onClick={handleExportRekordbox}
-                style={{
-                  fontFamily: 'inherit',
-                  fontSize: '11px',
-                  letterSpacing: '0.02em',
-                  textTransform: 'uppercase',
-                  padding: '8px 16px',
-                  border: '1px solid #fff',
-                  backgroundColor: 'transparent',
-                  color: '#fff',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease-out',
-                  borderRadius: 0
-                }}
-                onMouseEnter={(e) => {
+            <button
+              onClick={handleDownload}
+              disabled={downloading}
+              style={{
+                fontFamily: 'inherit',
+                fontSize: '11px',
+                letterSpacing: '0.02em',
+                textTransform: 'uppercase',
+                padding: '8px 20px',
+                border: '0px solid #fff',
+                backgroundColor: 'transparent',
+                color: '#fff',
+                cursor: downloading ? 'wait' : 'pointer',
+                transition: 'all 0.2s ease-out',
+                opacity: downloading ? 0.6 : 1,
+                borderRadius: 0
+              }}
+              onMouseEnter={(e) => {
+                if (!downloading) {
                   e.target.style.backgroundColor = '#fff';
                   e.target.style.color = '#1a1a1a';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = 'transparent';
-                  e.target.style.color = '#fff';
-                }}
-              >
-                EXPORT TO REKORDBOX
-              </button>
-              <button
-                onClick={handleDownload}
-                disabled={downloading}
-                style={{
-                  fontFamily: 'inherit',
-                  fontSize: '11px',
-                  letterSpacing: '0.02em',
-                  textTransform: 'uppercase',
-                  padding: '8px 20px',
-                  border: '0px solid #fff',
-                  backgroundColor: 'transparent',
-                  color: '#fff',
-                  cursor: downloading ? 'wait' : 'pointer',
-                  transition: 'all 0.2s ease-out',
-                  opacity: downloading ? 0.6 : 1,
-                  borderRadius: 0
-                }}
-                onMouseEnter={(e) => {
-                  if (!downloading) {
-                    e.target.style.backgroundColor = '#fff';
-                    e.target.style.color = '#1a1a1a';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.backgroundColor = 'transparent';
-                  e.target.style.color = '#fff';
-                }}
-              >
-                {downloading 
-                  ? 'DOWNLOADING...' 
-                  : selected.size === 1 
-                    ? 'DOWNLOAD TRACK' 
-                    : `DOWNLOAD ${selected.size} AS ZIP`}
-              </button>
-            </div>
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = 'transparent';
+                e.target.style.color = '#fff';
+              }}
+            >
+              {downloading 
+                ? 'DOWNLOADING...' 
+                : selected.size === 1 
+                  ? 'DOWNLOAD TRACK' 
+                  : `DOWNLOAD ${selected.size} AS ZIP`}
+            </button>
           </div>
         </div>
       )}
