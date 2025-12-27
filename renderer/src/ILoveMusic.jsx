@@ -373,6 +373,30 @@ const ILoveMusic = () => {
     setEditingTrack(null);
   };
 
+  // Export to Rekordbox format
+  const handleExportRekordbox = () => {
+    if (!window.electron || !window.electron.exportRekordbox) {
+      alert('REKORDBOX EXPORT NOT AVAILABLE');
+      return;
+    }
+    
+    const selectedTracks = tracks.filter(t => selected.has(t.id));
+    if (selectedTracks.length === 0) {
+      alert('PLEASE SELECT TRACKS TO EXPORT');
+      return;
+    }
+    
+    window.electron.exportRekordbox(selectedTracks).then(result => {
+      if (result.success) {
+        alert(`EXPORTED ${selectedTracks.length} TRACKS TO REKORDBOX FORMAT!`);
+      } else {
+        alert('EXPORT FAILED: ' + (result.error || 'UNKNOWN ERROR'));
+      }
+    }).catch(err => {
+      alert('EXPORT FAILED: ' + err.message);
+    });
+  };
+
   
   return (
     <div style={{
@@ -972,93 +996,159 @@ const ILoveMusic = () => {
         >
           <div style={{
             backgroundColor: '#fff',
-            padding: '24px',
-            maxWidth: '500px',
+            padding: '32px',
+            maxWidth: '600px',
             width: '90%',
             display: 'flex',
             flexDirection: 'column',
-            gap: '16px'
+            gap: '24px',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)'
           }}
           onClick={(e) => e.stopPropagation()}
           >
-            <h2 style={{ fontSize: '14px', textTransform: 'uppercase', margin: 0 }}>EDIT TRACK METADATA</h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <h2 style={{ 
+              fontSize: '12px', 
+              textTransform: 'uppercase', 
+              margin: 0,
+              letterSpacing: '0.02em',
+              fontWeight: '600'
+            }}>
+              EDIT TRACK METADATA
+            </h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div>
-                <label style={{ fontSize: '11px', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>TITLE</label>
+                <label style={{ 
+                  fontSize: '11px', 
+                  textTransform: 'uppercase', 
+                  display: 'block', 
+                  marginBottom: '8px',
+                  fontWeight: '600',
+                  letterSpacing: '0.01em'
+                }}>
+                  TITLE
+                </label>
                 <input
                   type="text"
                   defaultValue={editingTrack.title}
                   id="edit-title"
                   style={{
                     width: '100%',
-                    padding: '8px',
+                    padding: '12px',
                     border: '1px solid #1a1a1a',
                     fontSize: '11px',
                     textTransform: 'uppercase',
-                    outline: 'none'
+                    outline: 'none',
+                    fontFamily: 'inherit',
+                    boxSizing: 'border-box'
                   }}
                 />
               </div>
               <div>
-                <label style={{ fontSize: '11px', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>ARTIST</label>
+                <label style={{ 
+                  fontSize: '11px', 
+                  textTransform: 'uppercase', 
+                  display: 'block', 
+                  marginBottom: '8px',
+                  fontWeight: '600',
+                  letterSpacing: '0.01em'
+                }}>
+                  ARTIST
+                </label>
                 <input
                   type="text"
                   defaultValue={editingTrack.artist}
                   id="edit-artist"
                   style={{
                     width: '100%',
-                    padding: '8px',
+                    padding: '12px',
                     border: '1px solid #1a1a1a',
                     fontSize: '11px',
                     textTransform: 'uppercase',
-                    outline: 'none'
+                    outline: 'none',
+                    fontFamily: 'inherit',
+                    boxSizing: 'border-box'
                   }}
                 />
               </div>
-              <div>
-                <label style={{ fontSize: '11px', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>BPM</label>
-                <input
-                  type="number"
-                  defaultValue={editingTrack.bpm || ''}
-                  id="edit-bpm"
-                  style={{
-                    width: '100%',
-                    padding: '8px',
-                    border: '1px solid #1a1a1a',
-                    fontSize: '11px',
-                    textTransform: 'uppercase',
-                    outline: 'none'
-                  }}
-                />
-              </div>
-              <div>
-                <label style={{ fontSize: '11px', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>KEY</label>
-                <input
-                  type="text"
-                  defaultValue={editingTrack.key || ''}
-                  id="edit-key"
-                  style={{
-                    width: '100%',
-                    padding: '8px',
-                    border: '1px solid #1a1a1a',
-                    fontSize: '11px',
-                    textTransform: 'uppercase',
-                    outline: 'none'
-                  }}
-                />
+              <div style={{ display: 'flex', gap: '16px' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ 
+                    fontSize: '11px', 
+                    textTransform: 'uppercase', 
+                    display: 'block', 
+                    marginBottom: '8px',
+                    fontWeight: '600',
+                    letterSpacing: '0.01em'
+                  }}>
+                    BPM
+                  </label>
+                  <input
+                    type="number"
+                    defaultValue={editingTrack.bpm || ''}
+                    id="edit-bpm"
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '1px solid #1a1a1a',
+                      fontSize: '11px',
+                      textTransform: 'uppercase',
+                      outline: 'none',
+                      fontFamily: 'inherit',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <label style={{ 
+                    fontSize: '11px', 
+                    textTransform: 'uppercase', 
+                    display: 'block', 
+                    marginBottom: '8px',
+                    fontWeight: '600',
+                    letterSpacing: '0.01em'
+                  }}>
+                    KEY
+                  </label>
+                  <input
+                    type="text"
+                    defaultValue={editingTrack.key || ''}
+                    id="edit-key"
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      border: '1px solid #1a1a1a',
+                      fontSize: '11px',
+                      textTransform: 'uppercase',
+                      outline: 'none',
+                      fontFamily: 'inherit',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '8px' }}>
               <button
                 onClick={() => setEditingTrack(null)}
                 style={{
-                  padding: '8px 16px',
+                  padding: '10px 24px',
                   border: '1px solid #1a1a1a',
                   backgroundColor: '#fff',
                   color: '#1a1a1a',
                   cursor: 'pointer',
                   fontSize: '11px',
-                  textTransform: 'uppercase'
+                  textTransform: 'uppercase',
+                  fontFamily: 'inherit',
+                  letterSpacing: '0.02em',
+                  transition: 'all 0.2s ease-out'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = '#1a1a1a';
+                  e.target.style.color = '#fff';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = '#fff';
+                  e.target.style.color = '#1a1a1a';
                 }}
               >
                 CANCEL
@@ -1075,13 +1165,22 @@ const ILoveMusic = () => {
                   handleSaveEdit(updated);
                 }}
                 style={{
-                  padding: '8px 16px',
+                  padding: '10px 24px',
                   border: 'none',
                   backgroundColor: '#1a1a1a',
                   color: '#fff',
                   cursor: 'pointer',
                   fontSize: '11px',
-                  textTransform: 'uppercase'
+                  textTransform: 'uppercase',
+                  fontFamily: 'inherit',
+                  letterSpacing: '0.02em',
+                  transition: 'all 0.2s ease-out'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.opacity = '0.8';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.opacity = '1';
                 }}
               >
                 SAVE
@@ -1113,42 +1212,70 @@ const ILoveMusic = () => {
           transition: 'opacity 0.2s ease-out',
           borderRadius: 0
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px' }}>
             <span>{selected.size} SELECTED</span>
-            <button
-            onClick={handleDownload}
-            disabled={downloading}
-            style={{
-              fontFamily: 'inherit',
-              fontSize: '11px',
-              letterSpacing: '0.02em',
-              textTransform: 'uppercase',
-              padding: '8px 20px',
-              border: '0px solid #fff',
-              backgroundColor: 'transparent',
-              color: '#fff',
-              cursor: downloading ? 'wait' : 'pointer',
-              transition: 'all 0.2s ease-out',
-              opacity: downloading ? 0.6 : 1,
-              borderRadius: 0
-            }}
-            onMouseEnter={(e) => {
-              if (!downloading) {
-                e.target.style.backgroundColor = '#fff';
-                e.target.style.color = '#1a1a1a';
-              }
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.backgroundColor = 'transparent';
-              e.target.style.color = '#fff';
-            }}
-          >
-            {downloading 
-              ? 'DOWNLOADING...' 
-              : selected.size === 1 
-                ? 'DOWNLOAD TRACK' 
-                : `DOWNLOAD ${selected.size} AS ZIP`}
-          </button>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                onClick={handleExportRekordbox}
+                style={{
+                  fontFamily: 'inherit',
+                  fontSize: '11px',
+                  letterSpacing: '0.02em',
+                  textTransform: 'uppercase',
+                  padding: '8px 16px',
+                  border: '1px solid #fff',
+                  backgroundColor: 'transparent',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease-out',
+                  borderRadius: 0
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = '#fff';
+                  e.target.style.color = '#1a1a1a';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = 'transparent';
+                  e.target.style.color = '#fff';
+                }}
+              >
+                EXPORT TO REKORDBOX
+              </button>
+              <button
+                onClick={handleDownload}
+                disabled={downloading}
+                style={{
+                  fontFamily: 'inherit',
+                  fontSize: '11px',
+                  letterSpacing: '0.02em',
+                  textTransform: 'uppercase',
+                  padding: '8px 20px',
+                  border: '0px solid #fff',
+                  backgroundColor: 'transparent',
+                  color: '#fff',
+                  cursor: downloading ? 'wait' : 'pointer',
+                  transition: 'all 0.2s ease-out',
+                  opacity: downloading ? 0.6 : 1,
+                  borderRadius: 0
+                }}
+                onMouseEnter={(e) => {
+                  if (!downloading) {
+                    e.target.style.backgroundColor = '#fff';
+                    e.target.style.color = '#1a1a1a';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = 'transparent';
+                  e.target.style.color = '#fff';
+                }}
+              >
+                {downloading 
+                  ? 'DOWNLOADING...' 
+                  : selected.size === 1 
+                    ? 'DOWNLOAD TRACK' 
+                    : `DOWNLOAD ${selected.size} AS ZIP`}
+              </button>
+            </div>
           </div>
         </div>
       )}
