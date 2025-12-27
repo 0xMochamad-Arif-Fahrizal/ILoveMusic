@@ -1014,3 +1014,73 @@ ipcMain.handle('soundcloud:download', async (_, trackIds, tracks) => {
     throw error;
   }
 });
+
+// Handler untuk export ke Rekordbox format
+ipcMain.handle('exportRekordbox', async (_, tracks) => {
+  try {
+    const downloadsPath = app.getPath('downloads');
+    const xmlPath = path.join(downloadsPath, `ILOVEMUSIC-Rekordbox-${Date.now()}.xml`);
+    
+    // Create Rekordbox XML format
+    let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+    xml += '<DJ_PLAYLISTS Version="1.0.0">\n';
+    xml += '  <PRODUCT Name="ILoveMusic" Version="1.0"/>\n';
+    xml += '  <COLLECTION Entries="' + tracks.length + '">\n';
+    
+    tracks.forEach((track, index) => {
+      const trackId = index + 1;
+      const fileName = `${track.title} - ${track.artist}.mp3`.replace(/[<>:"/\\|?*]/g, '_');
+      const filePath = track.filePath || '';
+      
+      xml += '    <TRACK TrackID="' + trackId + '" Name="' + escapeXml(track.title || 'Unknown') + '" Artist="' + escapeXml(track.artist || 'Unknown Artist') + '"';
+      
+      if (track.bpm) {
+        xml += ' AverageBpm="' + Math.round(track.bpm) + '"';
+      }
+      
+      if (track.key) {
+        xml += ' Tonality="' + escapeXml(track.key) + '"';
+      }
+      
+      if (track.duration) {
+        const totalSeconds = Math.round(track.duration);
+        xml += ' TotalTime="' + totalSeconds + '"';
+      }
+      
+      xml += ' Location="file://localhost/' + escapeXml(filePath.replace(/\\/g, '/')) + '"';
+      xml += '/>\n';
+    });
+    
+    xml += '  </COLLECTION>\n';
+    xml += '  <PLAYLISTS>\n';
+    xml += '    <NODE Type="0" Name="ROOT" Count="1">\n';
+    xml += '      <NODE Name="ILoveMusic Export" Type="1" Entries="' + tracks.length + '">\n';
+    
+    tracks.forEach((track, index) => {
+      xml += '        <TRACK Key="' + (index + 1) + '"/>\n';
+    });
+    
+    xml += '      </NODE>\n';
+    xml += '    </NODE>\n';
+    xml += '  </PLAYLISTS>\n';
+    xml += '</DJ_PLAYLISTS>\n';
+    
+    fs.writeFileSync(xmlPath, xml, 'utf8');
+    
+    return { success: true, path: xmlPath };
+  } catch (error) {
+    console.error('Error exporting to Rekordbox:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Helper function to escape XML
+function escapeXml(unsafe) {
+  if (!unsafe) return '';
+  return unsafe.toString()
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
