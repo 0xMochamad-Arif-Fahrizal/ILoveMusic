@@ -10,40 +10,8 @@ const ILoveMusic = () => {
   const [playingTrack, setPlayingTrack] = useState(null);
   const [loadingTrack, setLoadingTrack] = useState(false);
   const [downloading, setDownloading] = useState(false);
-  const [downloadProgress, setDownloadProgress] = useState(0);
   
   const [tracks, setTracks] = useState([]);
-  
-  // Search & Filter states
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterBpmMin, setFilterBpmMin] = useState('');
-  const [filterBpmMax, setFilterBpmMax] = useState('');
-  const [filterKey, setFilterKey] = useState('');
-  const [filterArtist, setFilterArtist] = useState('');
-  
-  // Sorting state
-  const [sortBy, setSortBy] = useState('title'); // 'title', 'artist', 'bpm', 'key', 'duration'
-  const [sortOrder, setSortOrder] = useState('asc'); // 'asc', 'desc'
-  
-  // Queue management
-  const [queue, setQueue] = useState([]);
-  const [queueIndex, setQueueIndex] = useState(0);
-  const [shuffleMode, setShuffleMode] = useState(false);
-  const [repeatMode, setRepeatMode] = useState('off'); // 'off', 'all', 'one'
-  
-  // Volume control
-  const [volume, setVolume] = useState(1);
-  
-  // Track history
-  const [trackHistory, setTrackHistory] = useState([]);
-  const [playCounts, setPlayCounts] = useState({});
-  
-  // Tags/Categories
-  const [trackTags, setTrackTags] = useState({}); // { trackId: ['tag1', 'tag2'] }
-  const [filterTag, setFilterTag] = useState('');
-  
-  // Editing state
-  const [editingTrack, setEditingTrack] = useState(null);
   
   const audioRefs = useRef({});
 
@@ -273,409 +241,34 @@ const ILoveMusic = () => {
     if (selected.size === 0 || downloading) return;
     
     setDownloading(true);
-    setDownloadProgress(0);
-    
     try {
       const trackIds = Array.from(selected);
-      
-      // Simulate progress (since we don't have real progress from archiver)
-      const progressInterval = setInterval(() => {
-        setDownloadProgress(prev => {
-          if (prev >= 90) {
-            clearInterval(progressInterval);
-            return prev;
-          }
-          return prev + 10;
-        });
-      }, 200);
-      
       const result = await window.electron.downloadTracks(trackIds, tracks);
       
-      clearInterval(progressInterval);
-      setDownloadProgress(100);
-      
       if (result.success) {
-        setTimeout(() => {
-          alert(`Download successful! File saved to Downloads folder.`);
-          setSelected(new Set());
-          setDownloading(false);
-          setDownloadProgress(0);
-        }, 500);
+        alert(`Download successful! File saved to Downloads folder.`);
+        setSelected(new Set());
       }
     } catch (err) {
-      setDownloadProgress(0);
       alert('Download failed: ' + (err.message || 'Unknown error'));
       console.error(err);
+    } finally {
       setDownloading(false);
     }
   };
 
-  // Select All / Deselect All
-  const handleSelectAll = () => {
-    const allIds = new Set(tracks.map(t => t.id));
-    setSelected(allIds);
-  };
-
-  const handleDeselectAll = () => {
-    setSelected(new Set());
-  };
-
-  // Filter and sort tracks
-  const getFilteredAndSortedTracks = () => {
-    let filtered = [...tracks];
-
-    // Apply search filter
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(track => 
-        track.title?.toLowerCase().includes(query) ||
-        track.artist?.toLowerCase().includes(query) ||
-        track.bpm?.toString().includes(query) ||
-        track.key?.toLowerCase().includes(query)
-      );
-    }
-
-    // Apply BPM filter
-    if (filterBpmMin) {
-      const min = parseInt(filterBpmMin);
-      filtered = filtered.filter(track => track.bpm && track.bpm >= min);
-    }
-    if (filterBpmMax) {
-      const max = parseInt(filterBpmMax);
-      filtered = filtered.filter(track => track.bpm && track.bpm <= max);
-    }
-
-    // Apply key filter
-    if (filterKey) {
-      filtered = filtered.filter(track => track.key && track.key.toLowerCase() === filterKey.toLowerCase());
-    }
-
-    // Apply artist filter
-    if (filterArtist.trim()) {
-      const artist = filterArtist.toLowerCase();
-      filtered = filtered.filter(track => track.artist?.toLowerCase().includes(artist));
-    }
-
-    // Apply tag filter
-    if (filterTag) {
-      filtered = filtered.filter(track => {
-        const tags = trackTags[track.id] || [];
-        return tags.includes(filterTag);
-      });
-    }
-
-    // Sort tracks
-    filtered.sort((a, b) => {
-      let aVal, bVal;
-      
-      switch (sortBy) {
-        case 'bpm':
-          aVal = a.bpm || 0;
-          bVal = b.bpm || 0;
-          break;
-        case 'key':
-          aVal = a.key || '';
-          bVal = b.key || '';
-          break;
-        case 'title':
-          aVal = a.title || '';
-          bVal = b.title || '';
-          break;
-        case 'artist':
-          aVal = a.artist || '';
-          bVal = b.artist || '';
-          break;
-        case 'duration':
-          aVal = a.duration || 0;
-          bVal = b.duration || 0;
-          break;
-        default:
-          aVal = a.title || '';
-          bVal = b.title || '';
-      }
-
-      if (typeof aVal === 'string') {
-        return sortOrder === 'asc' 
-          ? aVal.localeCompare(bVal)
-          : bVal.localeCompare(aVal);
-      } else {
-        return sortOrder === 'asc' ? aVal - bVal : bVal - aVal;
-      }
-    });
-
-    return filtered;
-  };
-
-  // Calculate statistics
-  const getStatistics = () => {
-    const totalTracks = tracks.length;
-    const totalDuration = tracks.reduce((sum, t) => sum + (t.duration || 0), 0);
-    const bpmValues = tracks.filter(t => t.bpm).map(t => t.bpm);
-    const averageBpm = bpmValues.length > 0 
-      ? Math.round(bpmValues.reduce((sum, bpm) => sum + bpm, 0) / bpmValues.length)
-      : null;
-    
-    // Key distribution
-    const keyCounts = {};
-    tracks.forEach(t => {
-      if (t.key) {
-        keyCounts[t.key] = (keyCounts[t.key] || 0) + 1;
-      }
-    });
-    const keyDistribution = Object.entries(keyCounts)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5);
-
-    return {
-      totalTracks,
-      totalDuration,
-      averageBpm,
-      keyDistribution
-    };
-  };
-
-  // Update play count and history
-  const updatePlayHistory = (trackId) => {
-    setPlayCounts(prev => ({
-      ...prev,
-      [trackId]: (prev[trackId] || 0) + 1
-    }));
-    
-    setTrackHistory(prev => {
-      const newHistory = [trackId, ...prev.filter(id => id !== trackId)].slice(0, 50);
-      return newHistory;
-    });
-  };
-
-  // Enhanced play function with queue support
-  const handlePlayWithQueue = async (id) => {
-    // Update history
-    updatePlayHistory(id);
-    
-    // Handle queue if enabled
-    if (queue.length > 0) {
-      const currentIndex = queue.findIndex(t => t.id === id);
-      if (currentIndex !== -1) {
-        setQueueIndex(currentIndex);
-      }
-    }
-    
-    // Original play logic
-    await handlePlay(id);
-  };
-
-  // Queue management functions
-  const addToQueue = (trackId) => {
-    const track = tracks.find(t => t.id === trackId);
-    if (track) {
-      setQueue(prev => [...prev, track]);
-    }
-  };
-
-  const removeFromQueue = (index) => {
-    setQueue(prev => prev.filter((_, i) => i !== index));
-    if (queueIndex >= index) {
-      setQueueIndex(prev => Math.max(0, prev - 1));
-    }
-  };
-
-  const playNext = () => {
-    if (queue.length === 0) return;
-    
-    let nextIndex;
-    if (shuffleMode) {
-      nextIndex = Math.floor(Math.random() * queue.length);
+  // Toggle Select All / Deselect All
+  const handleToggleSelectAll = () => {
+    if (selected.size === tracks.length) {
+      // All selected, deselect all
+      setSelected(new Set());
     } else {
-      nextIndex = (queueIndex + 1) % queue.length;
-      if (nextIndex === 0 && repeatMode !== 'all') {
-        setPlayingTrack(null);
-        return;
-      }
+      // Not all selected, select all
+      const allIds = new Set(tracks.map(t => t.id));
+      setSelected(allIds);
     }
-    
-    setQueueIndex(nextIndex);
-    handlePlayWithQueue(queue[nextIndex].id);
   };
 
-  const playPrevious = () => {
-    if (queue.length === 0) return;
-    
-    let prevIndex;
-    if (shuffleMode) {
-      prevIndex = Math.floor(Math.random() * queue.length);
-    } else {
-      prevIndex = queueIndex === 0 ? queue.length - 1 : queueIndex - 1;
-    }
-    
-    setQueueIndex(prevIndex);
-    handlePlayWithQueue(queue[prevIndex].id);
-  };
-
-  // Tag management
-  const addTag = (trackId, tag) => {
-    setTrackTags(prev => ({
-      ...prev,
-      [trackId]: [...(prev[trackId] || []), tag]
-    }));
-  };
-
-  const removeTag = (trackId, tag) => {
-    setTrackTags(prev => ({
-      ...prev,
-      [trackId]: (prev[trackId] || []).filter(t => t !== tag)
-    }));
-  };
-
-  // Edit track metadata
-  const handleEditTrack = (track) => {
-    setEditingTrack(track);
-  };
-
-  const handleSaveEdit = (updatedTrack) => {
-    setTracks(prev => prev.map(t => 
-      t.id === updatedTrack.id ? { ...t, ...updatedTrack } : t
-    ));
-    setEditingTrack(null);
-  };
-
-  // Export/Import Playlist
-  const handleExportPlaylist = () => {
-    const playlistData = {
-      tracks: tracks,
-      tags: trackTags,
-      playCounts: playCounts,
-      exportDate: new Date().toISOString()
-    };
-    const dataStr = JSON.stringify(playlistData, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `ILoveMusic-Playlist-${Date.now()}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const handleImportPlaylist = () => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'application/json';
-    input.onchange = (e) => {
-      const file = e.target.files[0];
-      if (file) {
-        const reader = new FileReader();
-        reader.onload = (event) => {
-          try {
-            const playlistData = JSON.parse(event.target.result);
-            if (playlistData.tracks) {
-              setTracks(playlistData.tracks);
-              if (playlistData.tags) setTrackTags(playlistData.tags);
-              if (playlistData.playCounts) setPlayCounts(playlistData.playCounts);
-              alert('Playlist imported successfully!');
-            }
-          } catch (err) {
-            alert('Error importing playlist: ' + err.message);
-          }
-        };
-        reader.readAsText(file);
-      }
-    };
-    input.click();
-  };
-
-  // Export to Rekordbox format
-  const handleExportRekordbox = () => {
-    if (!window.electron || !window.electron.exportRekordbox) {
-      alert('Rekordbox export not available');
-      return;
-    }
-    
-    const selectedTracks = tracks.filter(t => selected.has(t.id));
-    if (selectedTracks.length === 0) {
-      alert('Please select tracks to export');
-      return;
-    }
-    
-    window.electron.exportRekordbox(selectedTracks).then(result => {
-      if (result.success) {
-        alert(`Exported ${selectedTracks.length} tracks to Rekordbox format!`);
-      } else {
-        alert('Export failed: ' + (result.error || 'Unknown error'));
-      }
-    }).catch(err => {
-      alert('Export failed: ' + err.message);
-    });
-  };
-
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyPress = (e) => {
-      // Don't trigger if typing in input
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
-        return;
-      }
-
-      // Space: Play/Pause
-      if (e.key === ' ') {
-        e.preventDefault();
-        if (playingTrack) {
-          handlePlay(playingTrack);
-        } else if (tracks.length > 0) {
-          handlePlayWithQueue(tracks[0].id);
-        }
-      }
-
-      // Delete: Remove selected track
-      if (e.key === 'Delete' && playingTrack) {
-        handleRemoveTrack(playingTrack);
-      }
-
-      // Cmd/Ctrl+A: Select All
-      if ((e.metaKey || e.ctrlKey) && e.key === 'a') {
-        e.preventDefault();
-        handleSelectAll();
-      }
-
-      // Arrow keys for navigation (if queue is active)
-      if (queue.length > 0) {
-        if (e.key === 'ArrowRight') {
-          e.preventDefault();
-          playNext();
-        }
-        if (e.key === 'ArrowLeft') {
-          e.preventDefault();
-          playPrevious();
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [playingTrack, tracks, queue, queueIndex]);
-
-  // Apply volume to all audio elements
-  useEffect(() => {
-    Object.values(audioRefs.current).forEach(audio => {
-      if (audio) {
-        audio.volume = volume;
-      }
-    });
-  }, [volume]);
-
-  // Auto-play next in queue
-  useEffect(() => {
-    if (playingTrack === null && queue.length > 0 && repeatMode !== 'off') {
-      const currentAudio = audioRefs.current[queue[queueIndex]?.id];
-      if (currentAudio && currentAudio.ended) {
-        if (repeatMode === 'one') {
-          currentAudio.currentTime = 0;
-          currentAudio.play();
-        } else {
-          playNext();
-        }
-      }
-    }
-  }, [playingTrack, queue, queueIndex, repeatMode]);
   
   return (
     <div style={{
@@ -813,82 +406,32 @@ const ILoveMusic = () => {
       <div style={{
         display: 'flex',
         gap: '12px',
-        marginBottom: '32px',
-        alignItems: 'center',
-        justifyContent: 'space-between'
+        marginBottom: '32px'
       }}>
-        <div style={{ display: 'flex', gap: '12px' }}>
-          {['about', 'preview'].map((item) => {
-            const isActive = activeTab === item;
-            return (
-              <button 
-                key={item} 
-                onClick={() => setActiveTab(item)}
-                style={{
-                  fontFamily: 'inherit',
-                  fontSize: '11px',
-                  letterSpacing: '0.02em',
-                  textTransform: 'uppercase',
-                  backgroundColor: isActive ? '#1a1a1a' : '#fff',
-                  color: isActive ? '#fff' : '#1a1a1a',
-                  border: isActive ? '1px solid #fff' : '1px solid #1a1a1a',
-                  cursor: 'pointer',
-                  padding: '10px 20px',
-                  borderRadius: 0,
-                  outline: 'none'
-                }}
-              >
-                {item}
-              </button>
-            );
-          })}
-        </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button
-            onClick={handleExportPlaylist}
-            style={{
-              fontSize: '11px',
-              padding: '8px 16px',
-              border: '1px solid #1a1a1a',
-              backgroundColor: '#fff',
-              color: '#1a1a1a',
-              cursor: 'pointer',
-              textTransform: 'uppercase'
-            }}
-          >
-            EXPORT PLAYLIST
-          </button>
-          <button
-            onClick={handleImportPlaylist}
-            style={{
-              fontSize: '11px',
-              padding: '8px 16px',
-              border: '1px solid #1a1a1a',
-              backgroundColor: '#fff',
-              color: '#1a1a1a',
-              cursor: 'pointer',
-              textTransform: 'uppercase'
-            }}
-          >
-            IMPORT PLAYLIST
-          </button>
-          {selected.size > 0 && (
-            <button
-              onClick={handleExportRekordbox}
+        {['about', 'preview'].map((item) => {
+          const isActive = activeTab === item;
+          return (
+            <button 
+              key={item} 
+              onClick={() => setActiveTab(item)}
               style={{
+                fontFamily: 'inherit',
                 fontSize: '11px',
-                padding: '8px 16px',
-                border: '1px solid #1a1a1a',
-                backgroundColor: '#1a1a1a',
-                color: '#fff',
+                letterSpacing: '0.02em',
+                textTransform: 'uppercase',
+                backgroundColor: isActive ? '#1a1a1a' : '#fff',
+                color: isActive ? '#fff' : '#1a1a1a',
+                border: isActive ? '1px solid #fff' : '1px solid #1a1a1a',
                 cursor: 'pointer',
-                textTransform: 'uppercase'
+                padding: '10px 20px',
+                borderRadius: 0,
+                outline: 'none'
               }}
             >
-              EXPORT TO REKORDBOX
+              {item}
             </button>
-          )}
-        </div>
+          );
+        })}
       </div>
 
       {activeTab === 'about' && (
@@ -947,254 +490,31 @@ const ILoveMusic = () => {
 
       {activeTab === 'preview' && (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        {/* Search & Filter Section */}
-        <div style={{
-          backgroundColor: '#fff',
-          padding: '16px',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '12px',
-          marginBottom: '16px'
-        }}>
-          {/* Search Bar */}
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="SEARCH TRACKS..."
-              style={{
-                fontFamily: 'inherit',
-                fontSize: '11px',
-                padding: '8px 12px',
-                border: '1px solid #1a1a1a',
-                backgroundColor: '#fff',
-                color: '#1a1a1a',
-                flex: 1,
-                outline: 'none',
-                textTransform: 'uppercase'
-              }}
-            />
-            <button
-              onClick={handleSelectAll}
-              style={{
-                fontSize: '11px',
-                padding: '8px 16px',
-                border: '1px solid #1a1a1a',
-                backgroundColor: '#fff',
-                color: '#1a1a1a',
-                cursor: 'pointer',
-                textTransform: 'uppercase'
-              }}
-            >
-              SELECT ALL
-            </button>
-            <button
-              onClick={handleDeselectAll}
-              style={{
-                fontSize: '11px',
-                padding: '8px 16px',
-                border: '1px solid #1a1a1a',
-                backgroundColor: '#fff',
-                color: '#1a1a1a',
-                cursor: 'pointer',
-                textTransform: 'uppercase'
-              }}
-            >
-              DESELECT ALL
-            </button>
-          </div>
-
-          {/* Filters */}
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <input
-              type="number"
-              value={filterBpmMin}
-              onChange={(e) => setFilterBpmMin(e.target.value)}
-              placeholder="BPM MIN"
-              style={{
-                fontSize: '11px',
-                padding: '6px 10px',
-                border: '1px solid #1a1a1a',
-                width: '80px',
-                outline: 'none'
-              }}
-            />
-            <input
-              type="number"
-              value={filterBpmMax}
-              onChange={(e) => setFilterBpmMax(e.target.value)}
-              placeholder="BPM MAX"
-              style={{
-                fontSize: '11px',
-                padding: '6px 10px',
-                border: '1px solid #1a1a1a',
-                width: '80px',
-                outline: 'none'
-              }}
-            />
-            <input
-              type="text"
-              value={filterKey}
-              onChange={(e) => setFilterKey(e.target.value)}
-              placeholder="KEY"
-              style={{
-                fontSize: '11px',
-                padding: '6px 10px',
-                border: '1px solid #1a1a1a',
-                width: '80px',
-                outline: 'none'
-              }}
-            />
-            <input
-              type="text"
-              value={filterArtist}
-              onChange={(e) => setFilterArtist(e.target.value)}
-              placeholder="ARTIST"
-              style={{
-                fontSize: '11px',
-                padding: '6px 10px',
-                border: '1px solid #1a1a1a',
-                flex: 1,
-                outline: 'none'
-              }}
-            />
-          </div>
-
-          {/* Sort Controls */}
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <span style={{ fontSize: '11px', textTransform: 'uppercase' }}>SORT BY:</span>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              style={{
-                fontSize: '11px',
-                padding: '6px 10px',
-                border: '1px solid #1a1a1a',
-                backgroundColor: '#fff',
-                outline: 'none',
-                textTransform: 'uppercase'
-              }}
-            >
-              <option value="title">TITLE</option>
-              <option value="artist">ARTIST</option>
-              <option value="bpm">BPM</option>
-              <option value="key">KEY</option>
-              <option value="duration">DURATION</option>
-            </select>
-            <button
-              onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-              style={{
-                fontSize: '11px',
-                padding: '6px 12px',
-                border: '1px solid #1a1a1a',
-                backgroundColor: '#fff',
-                cursor: 'pointer',
-                textTransform: 'uppercase'
-              }}
-            >
-              {sortOrder === 'asc' ? '↑ ASC' : '↓ DESC'}
-            </button>
-          </div>
-        </div>
-
-        {/* Statistics */}
-        {(() => {
-          const stats = getStatistics();
-          return (
-            <div style={{
-              backgroundColor: '#fff',
-              padding: '12px 16px',
-              display: 'flex',
-              gap: '24px',
-              fontSize: '10px',
-              textTransform: 'uppercase',
-              marginBottom: '16px'
-            }}>
-              <span>TRACKS: {stats.totalTracks}</span>
-              <span>DURATION: {formatTime(stats.totalDuration)}</span>
-              {stats.averageBpm && <span>AVG BPM: {stats.averageBpm}</span>}
-              {stats.keyDistribution.length > 0 && (
-                <span>
-                  TOP KEYS: {stats.keyDistribution.map(([key, count]) => `${key}(${count})`).join(', ')}
-                </span>
-              )}
-            </div>
-          );
-        })()}
-
-        {/* Volume Control */}
+        {/* Toggle Select All Button */}
         <div style={{
           backgroundColor: '#fff',
           padding: '12px 16px',
           display: 'flex',
-          gap: '12px',
-          alignItems: 'center',
-          marginBottom: '16px'
-        }}>
-          <span style={{ fontSize: '11px', textTransform: 'uppercase', minWidth: '60px' }}>VOLUME:</span>
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            value={volume}
-            onChange={(e) => setVolume(parseFloat(e.target.value))}
-            style={{ flex: 1 }}
-          />
-          <span style={{ fontSize: '11px', minWidth: '40px' }}>{Math.round(volume * 100)}%</span>
-        </div>
-
-        {/* Queue Controls */}
-        <div style={{
-          backgroundColor: '#fff',
-          padding: '12px 16px',
-          display: 'flex',
-          gap: '12px',
-          alignItems: 'center',
+          justifyContent: 'flex-end',
           marginBottom: '16px'
         }}>
           <button
-            onClick={() => setShuffleMode(!shuffleMode)}
+            onClick={handleToggleSelectAll}
             style={{
               fontSize: '11px',
-              padding: '6px 12px',
+              padding: '8px 16px',
               border: '1px solid #1a1a1a',
-              backgroundColor: shuffleMode ? '#1a1a1a' : '#fff',
-              color: shuffleMode ? '#fff' : '#1a1a1a',
+              backgroundColor: selected.size === tracks.length ? '#1a1a1a' : '#fff',
+              color: selected.size === tracks.length ? '#fff' : '#1a1a1a',
               cursor: 'pointer',
               textTransform: 'uppercase'
             }}
           >
-            SHUFFLE {shuffleMode ? 'ON' : 'OFF'}
+            {selected.size === tracks.length ? 'DESELECT ALL' : 'SELECT ALL'}
           </button>
-          <button
-            onClick={() => {
-              const modes = ['off', 'all', 'one'];
-              const currentIndex = modes.indexOf(repeatMode);
-              setRepeatMode(modes[(currentIndex + 1) % modes.length]);
-            }}
-            style={{
-              fontSize: '11px',
-              padding: '6px 12px',
-              border: '1px solid #1a1a1a',
-              backgroundColor: '#fff',
-              color: '#1a1a1a',
-              cursor: 'pointer',
-              textTransform: 'uppercase'
-            }}
-          >
-            REPEAT: {repeatMode.toUpperCase()}
-          </button>
-          {queue.length > 0 && (
-            <span style={{ fontSize: '11px' }}>
-              QUEUE: {queue.length} TRACKS
-            </span>
-          )}
         </div>
 
-        {/* Track List */}
-        {getFilteredAndSortedTracks().map((track) => {
+        {tracks.map((track) => {
           const isSelected = selected.has(track.id);
           const isPlaying = playingTrack === track.id;
           const progress = track.duration > 0 ? track.currentTime / track.duration : 0;
@@ -1213,7 +533,7 @@ const ILoveMusic = () => {
               }}
             >
               <button
-                onClick={() => handlePlayWithQueue(track.id)}
+                onClick={() => handlePlay(track.id)}
                 style={{
                   width: '32px',
                   height: '32px',
@@ -1351,60 +671,6 @@ const ILoveMusic = () => {
                   {isSelected ? '−' : '+'}
                 </button>
                 <button
-                  onClick={() => addToQueue(track.id)}
-                  style={{
-                    width: '32px',
-                    height: '32px',
-                    border: '1px solid #1a1a1a',
-                    backgroundColor: '#fff',
-                    color: '#1a1a1a',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '12px',
-                    transition: 'all 0.2s ease-out'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.backgroundColor = '#1a1a1a';
-                    e.target.style.color = '#fff';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.backgroundColor = '#fff';
-                    e.target.style.color = '#1a1a1a';
-                  }}
-                  title="Add to Queue"
-                >
-                  +
-                </button>
-                <button
-                  onClick={() => handleEditTrack(track)}
-                  style={{
-                    width: '32px',
-                    height: '32px',
-                    border: '1px solid #1a1a1a',
-                    backgroundColor: '#fff',
-                    color: '#1a1a1a',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '12px',
-                    transition: 'all 0.2s ease-out'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.target.style.backgroundColor = '#1a1a1a';
-                    e.target.style.color = '#fff';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.target.style.backgroundColor = '#fff';
-                    e.target.style.color = '#1a1a1a';
-                  }}
-                  title="Edit Metadata"
-                >
-                  ✎
-                </button>
-                <button
                   onClick={() => handleRemoveTrack(track.id)}
                   style={{
                     width: '32px',
@@ -1492,158 +758,15 @@ const ILoveMusic = () => {
             }}
           >
             {downloading 
-              ? `DOWNLOADING... ${downloadProgress}%` 
+              ? 'DOWNLOADING...' 
               : selected.size === 1 
                 ? 'DOWNLOAD TRACK' 
                 : `DOWNLOAD ${selected.size} AS ZIP`}
           </button>
           </div>
-          {downloading && (
-            <div style={{
-              width: '100%',
-              height: '4px',
-              backgroundColor: '#333',
-              position: 'relative'
-            }}>
-              <div style={{
-                width: `${downloadProgress}%`,
-                height: '100%',
-                backgroundColor: '#fff',
-                transition: 'width 0.3s ease-out'
-              }} />
-            </div>
-          )}
         </div>
       )}
 
-      {/* Edit Track Modal */}
-      {editingTrack && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0, 0, 0, 0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000
-        }}
-        onClick={() => setEditingTrack(null)}
-        >
-          <div style={{
-            backgroundColor: '#fff',
-            padding: '24px',
-            maxWidth: '500px',
-            width: '90%',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '16px'
-          }}
-          onClick={(e) => e.stopPropagation()}
-          >
-            <h2 style={{ fontSize: '14px', textTransform: 'uppercase', margin: 0 }}>EDIT TRACK METADATA</h2>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div>
-                <label style={{ fontSize: '11px', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>TITLE</label>
-                <input
-                  type="text"
-                  defaultValue={editingTrack.title}
-                  id="edit-title"
-                  style={{
-                    width: '100%',
-                    padding: '8px',
-                    border: '1px solid #1a1a1a',
-                    fontSize: '11px'
-                  }}
-                />
-              </div>
-              <div>
-                <label style={{ fontSize: '11px', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>ARTIST</label>
-                <input
-                  type="text"
-                  defaultValue={editingTrack.artist}
-                  id="edit-artist"
-                  style={{
-                    width: '100%',
-                    padding: '8px',
-                    border: '1px solid #1a1a1a',
-                    fontSize: '11px'
-                  }}
-                />
-              </div>
-              <div>
-                <label style={{ fontSize: '11px', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>BPM</label>
-                <input
-                  type="number"
-                  defaultValue={editingTrack.bpm || ''}
-                  id="edit-bpm"
-                  style={{
-                    width: '100%',
-                    padding: '8px',
-                    border: '1px solid #1a1a1a',
-                    fontSize: '11px'
-                  }}
-                />
-              </div>
-              <div>
-                <label style={{ fontSize: '11px', textTransform: 'uppercase', display: 'block', marginBottom: '4px' }}>KEY</label>
-                <input
-                  type="text"
-                  defaultValue={editingTrack.key || ''}
-                  id="edit-key"
-                  style={{
-                    width: '100%',
-                    padding: '8px',
-                    border: '1px solid #1a1a1a',
-                    fontSize: '11px'
-                  }}
-                />
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-              <button
-                onClick={() => setEditingTrack(null)}
-                style={{
-                  padding: '8px 16px',
-                  border: '1px solid #1a1a1a',
-                  backgroundColor: '#fff',
-                  color: '#1a1a1a',
-                  cursor: 'pointer',
-                  fontSize: '11px',
-                  textTransform: 'uppercase'
-                }}
-              >
-                CANCEL
-              </button>
-              <button
-                onClick={() => {
-                  const updated = {
-                    ...editingTrack,
-                    title: document.getElementById('edit-title').value,
-                    artist: document.getElementById('edit-artist').value,
-                    bpm: parseInt(document.getElementById('edit-bpm').value) || null,
-                    key: document.getElementById('edit-key').value || null
-                  };
-                  handleSaveEdit(updated);
-                }}
-                style={{
-                  padding: '8px 16px',
-                  border: 'none',
-                  backgroundColor: '#1a1a1a',
-                  color: '#fff',
-                  cursor: 'pointer',
-                  fontSize: '11px',
-                  textTransform: 'uppercase'
-                }}
-              >
-                SAVE
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
       </div>
     </div>
   );
