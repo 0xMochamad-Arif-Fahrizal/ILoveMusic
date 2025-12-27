@@ -15,6 +15,28 @@ const ILoveMusic = () => {
   
   const audioRefs = useRef({});
 
+  // Load tracks from localStorage on mount
+  useEffect(() => {
+    const savedTracks = localStorage.getItem('ilovemusic_tracks');
+    if (savedTracks) {
+      try {
+        const parsedTracks = JSON.parse(savedTracks);
+        setTracks(parsedTracks);
+      } catch (err) {
+        console.error('Error loading tracks from localStorage:', err);
+      }
+    }
+  }, []);
+
+  // Save tracks to localStorage whenever tracks change
+  useEffect(() => {
+    if (tracks.length > 0) {
+      localStorage.setItem('ilovemusic_tracks', JSON.stringify(tracks));
+    } else {
+      localStorage.removeItem('ilovemusic_tracks');
+    }
+  }, [tracks]);
+
   const handleAddSoundCloud = async () => {
     if (!pastedUrl.trim() || loadingTrack) return;
   
@@ -114,6 +136,29 @@ const ILoveMusic = () => {
       newSelected.add(id);
     }
     setSelected(newSelected);
+  };
+
+  const handleRemoveTrack = (id) => {
+    // Stop playing if this track is playing
+    if (playingTrack === id) {
+      if (audioRefs.current[id]) {
+        audioRefs.current[id].pause();
+      }
+      setPlayingTrack(null);
+    }
+    
+    // Remove from selected if selected
+    const newSelected = new Set(selected);
+    newSelected.delete(id);
+    setSelected(newSelected);
+    
+    // Remove audio ref
+    if (audioRefs.current[id]) {
+      delete audioRefs.current[id];
+    }
+    
+    // Remove from tracks
+    setTracks(prev => prev.filter(t => t.id !== id));
   };
 
   const handlePlay = async (id) => {
@@ -516,26 +561,49 @@ const ILoveMusic = () => {
                 </div>
               </div>
 
-              <button
-                onClick={() => toggleSelect(track.id)}
-                style={{
-                  width: '32px',
-                  height: '32px',
-                  border: isSelected ? 'none' : '0px solid #1a1a1a',
-                  backgroundColor: isSelected ? '#1a1a1a' : '#fff',
-                  color: isSelected ? '#fff' : '#1a1a1a',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '18px',
-                  fontWeight: 'normal',
-                  flexShrink: 0,
-                  transition: 'all 0.2s ease-out'
-                }}
-              >
-                {isSelected ? '−' : '+'}
-              </button>
+              <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+                <button
+                  onClick={() => toggleSelect(track.id)}
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    border: isSelected ? 'none' : '0px solid #1a1a1a',
+                    backgroundColor: isSelected ? '#1a1a1a' : '#fff',
+                    color: isSelected ? '#fff' : '#1a1a1a',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '18px',
+                    fontWeight: 'normal',
+                    transition: 'all 0.2s ease-out'
+                  }}
+                >
+                  {isSelected ? '−' : '+'}
+                </button>
+                <button
+                  onClick={() => handleRemoveTrack(track.id)}
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    border: 'none',
+                    backgroundColor: '#fff',
+                    color: '#ff4444',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '16px',
+                    fontWeight: 'bold',
+                    transition: 'all 0.2s ease-out'
+                  }}
+                  onMouseEnter={(e) => e.target.style.backgroundColor = '#ffebee'}
+                  onMouseLeave={(e) => e.target.style.backgroundColor = '#fff'}
+                  title="Remove track"
+                >
+                  ×
+                </button>
+              </div>
             </div>
           );
         })}
