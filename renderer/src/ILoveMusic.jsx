@@ -602,7 +602,7 @@ const ILoveMusic = () => {
                   style={{
                     width: '32px',
                     height: '32px',
-                    border: isSelected ? 'none' : '0px solid #1a1a1a',
+                    border: isSelected ? 'none' : '1px solid #1a1a1a',
                     backgroundColor: isSelected ? '#1a1a1a' : '#fff',
                     color: isSelected ? '#fff' : '#1a1a1a',
                     cursor: 'pointer',
@@ -611,7 +611,20 @@ const ILoveMusic = () => {
                     justifyContent: 'center',
                     fontSize: '18px',
                     fontWeight: 'normal',
-                    transition: 'all 0.2s ease-out'
+                    transition: 'all 0.2s ease-out',
+                    outline: 'none'
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isSelected) {
+                      e.target.style.backgroundColor = '#1a1a1a';
+                      e.target.style.color = '#fff';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isSelected) {
+                      e.target.style.backgroundColor = '#fff';
+                      e.target.style.color = '#1a1a1a';
+                    }
                   }}
                 >
                   {isSelected ? '−' : '+'}
@@ -621,9 +634,9 @@ const ILoveMusic = () => {
                   style={{
                     width: '32px',
                     height: '32px',
-                    border: 'none',
+                    border: '1px solid #1a1a1a',
                     backgroundColor: '#fff',
-                    color: '#ff4444',
+                    color: '#1a1a1a',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
@@ -632,8 +645,14 @@ const ILoveMusic = () => {
                     fontWeight: 'bold',
                     transition: 'all 0.2s ease-out'
                   }}
-                  onMouseEnter={(e) => e.target.style.backgroundColor = '#ffebee'}
-                  onMouseLeave={(e) => e.target.style.backgroundColor = '#fff'}
+                  onMouseEnter={(e) => {
+                    e.target.style.backgroundColor = '#1a1a1a';
+                    e.target.style.color = '#fff';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.target.style.backgroundColor = '#fff';
+                    e.target.style.color = '#1a1a1a';
+                  }}
                   title="Remove track"
                 >
                   ×
