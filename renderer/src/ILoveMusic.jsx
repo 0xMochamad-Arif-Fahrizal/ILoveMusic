@@ -5,7 +5,7 @@ import bgVideo from './assets/bg01.mp4';
 const ILoveMusic = () => {
   const [selected, setSelected] = useState(new Set());
   const [hoveredButton, setHoveredButton] = useState(null);
-  const [activeTab, setActiveTab] = useState('select');
+  const [activeTab, setActiveTab] = useState('preview');
   const [pastedUrl, setPastedUrl] = useState('');
   const [playingTrack, setPlayingTrack] = useState(null);
   const [loadingTrack, setLoadingTrack] = useState(false);
@@ -395,7 +395,7 @@ const ILoveMusic = () => {
         gap: '12px',
         marginBottom: '32px'
       }}>
-        {['about', 'select'].map((item) => {
+        {['about', 'preview'].map((item) => {
           const isActive = activeTab === item;
           return (
             <button 
@@ -475,7 +475,7 @@ const ILoveMusic = () => {
         </div>
       )}
 
-      {activeTab === 'select' && (
+      {activeTab === 'preview' && (
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
         {tracks.map((track) => {
           const isSelected = selected.has(track.id);
